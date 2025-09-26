@@ -58,8 +58,8 @@ docker-compose --profile nginx up -d
 ```
 
 #### 4. 웹 브라우저에서 접속
-- 직접 접속: http://localhost:5000
-- Nginx 프록시: http://localhost:80
+- 직접 접속: http://localhost:55007
+- Nginx 프록시: http://localhost:55007
 
 ### 방법 2: 로컬 실행
 
@@ -75,7 +75,7 @@ python app.py
 
 #### 3. 웹 브라우저에서 접속
 ```
-http://localhost:5000
+http://localhost:55007
 ```
 
 ## 프로젝트 구조
@@ -226,3 +226,4 @@ FLASK_DEBUG=1 docker-compose up
 - v1.1.0: 웹 인터페이스 추가
 - v1.2.0: 상세 텍스트 분석 및 시각화 개선
 - v1.3.0: Docker 컨테이너 지원 추가
+- v1.3.1: 포트 55007로 변경
