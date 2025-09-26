@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}JSON Annotation Validator - 홈{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i>
+                    JSON 파일 비교 분석
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="lead text-muted">
+                    두 개의 JSON/JSONL 파일을 업로드하여 변경사항을 분석합니다.
+                    <br>
+                    <small>지원 형식: .json, .jsonl (최대 16MB)</small>
+                </p>
+
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="original_file" class="form-label">
+                                    <i class="fas fa-file-alt me-1"></i>
+                                    원본 파일 (Original)
+                                </label>
+                                <input type="file" class="form-control" id="original_file" name="original_file" 
+                                       accept=".json,.jsonl" required>
+                                <div class="form-text">비교할 원본 JSON/JSONL 파일</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="exported_file" class="form-label">
+                                    <i class="fas fa-file-export me-1"></i>
+                                    내보낸 파일 (Exported)
+                                </label>
+                                <input type="file" class="form-control" id="exported_file" name="exported_file" 
+                                       accept=".json,.jsonl" required>
+                                <div class="form-text">비교할 내보낸 JSON/JSONL 파일</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
+                            <i class="fas fa-search me-2"></i>
+                            분석 시작
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="text-center mt-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">분석 중...</span>
+                    </div>
+                    <p class="mt-2 text-muted">파일을 분석하고 있습니다. 잠시만 기다려주세요...</p>
+                </div>
+
+                <!-- Results -->
+                <div id="results" class="mt-4" style="display: none;">
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>분석 완료!</h5>
+                        <p class="mb-0">파일 분석이 성공적으로 완료되었습니다.</p>
+                    </div>
+
+                    <div class="row" id="summaryCards">
+                        <!-- Summary cards will be populated by JavaScript -->
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <button type="button" class="btn btn-outline-primary" id="viewReportBtn">
+                            <i class="fas fa-eye me-2"></i>
+                            상세 보고서 보기
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="downloadReportBtn">
+                            <i class="fas fa-download me-2"></i>
+                            보고서 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error display -->
+                <div id="errorDisplay" class="mt-4" style="display: none;">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>오류 발생</h5>
+                        <p id="errorMessage" class="mb-0"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="row mt-5">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">정확한 비교</h5>
+                        <p class="card-text">텍스트, 메타데이터, 어노테이션의 모든 변경사항을 정확하게 분석합니다.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">상세한 통계</h5>
+                        <p class="card-text">변경 유형별 통계와 요약 정보를 제공합니다.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-download fa-3x text-info mb-3"></i>
+                        <h5 class="card-title">보고서 다운로드</h5>
+                        <p class="card-text">분석 결과를 JSON 형식으로 다운로드할 수 있습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    const originalFile = document.getElementById('original_file').files[0];
+    const exportedFile = document.getElementById('exported_file').files[0];
+    
+    if (!originalFile || !exportedFile) {
+        showError('두 파일 모두 선택해주세요.');
+        return;
+    }
+    
+    formData.append('original_file', originalFile);
+    formData.append('exported_file', exportedFile);
+    
+    // Show loading
+    showLoading();
+    hideResults();
+    hideError();
+    
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showResults(result);
+            window.currentSessionId = result.session_id;
+        } else {
+            showError(result.error || '분석 중 오류가 발생했습니다.');
+        }
+    } catch (error) {
+        showError('네트워크 오류가 발생했습니다: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+});
+
+function showLoading() {
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('analyzeBtn').disabled = true;
+}
+
+function hideLoading() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = false;
+}
+
+function showResults(result) {
+    const summary = result.summary;
+    const summaryCards = document.getElementById('summaryCards');
+    
+    summaryCards.innerHTML = `
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>${summary.total_records}</h3>
+                    <p class="mb-0">총 레코드</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>${summary.records_with_changes}</h3>
+                    <p class="mb-0">변경된 레코드</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>${summary.text_changes}</h3>
+                    <p class="mb-0">텍스트 변경</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>${summary.description_changes}</h3>
+                    <p class="mb-0">설명 변경</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('results').style.display = 'block';
+}
+
+function hideResults() {
+    document.getElementById('results').style.display = 'none';
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    document.getElementById('errorDisplay').style.display = 'block';
+}
+
+function hideError() {
+    document.getElementById('errorDisplay').style.display = 'none';
+}
+
+// Event listeners for buttons
+document.getElementById('viewReportBtn').addEventListener('click', function() {
+    if (window.currentSessionId) {
+        window.open(`/report/${window.currentSessionId}`, '_blank');
+    }
+});
+
+document.getElementById('downloadReportBtn').addEventListener('click', function() {
+    if (window.currentSessionId) {
+        window.location.href = `/download/${window.currentSessionId}`;
+    }
+});
+</script>
+{% endblock %}

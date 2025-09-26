@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}분석 보고서 - {{ report.metadata.original_file }} vs {{ report.metadata.exported_file }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-chart-line me-2"></i>분석 보고서</h1>
+            <div>
+                <a href="{{ url_for('main.download_report', session_id=session_id) }}" class="btn btn-success">
+                    <i class="fas fa-download me-2"></i>다운로드
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>돌아가기
+                </a>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.metadata.total_records }}</h3>
+                        <p class="mb-0">총 레코드</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.metadata.records_with_changes }}</h3>
+                        <p class="mb-0">변경된 레코드</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.text_changes }}</h3>
+                        <p class="mb-0">텍스트 변경</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.description_changes }}</h3>
+                        <p class="mb-0">설명 변경</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.subject_count_changes }}</h3>
+                        <p class="mb-0">Subject 수 변경</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.pii_annotation_changes }}</h3>
+                        <p class="mb-0">PII 변경</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>파일 정보</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>원본 파일:</strong> {{ report.metadata.original_file }}<br>
+                        <strong>내보낸 파일:</strong> {{ report.metadata.exported_file }}<br>
+                        <strong>분석 시간:</strong> {{ report.metadata.comparison_timestamp[:19] }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>무시된 필드:</strong> {{ report.metadata.ignored_fields | join(', ') }}<br>
+                        <strong>동일한 텍스트:</strong> {{ report.summary.identical_text_content }}개 레코드
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Changes by Record -->
+        {% if report.changes_by_record %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>레코드별 변경사항</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="changesAccordion">
+                    {% for data_id, changes in report.changes_by_record.items() %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ loop.index }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" 
+                                    aria-controls="collapse{{ loop.index }}">
+                                <strong>Data ID: {{ data_id }}</strong>
+                                <div class="ms-2">
+                                    {% if changes.text_changes and not changes.text_changes.identical %}
+                                    <span class="badge bg-danger me-1">text 변경</span>
+                                    {% endif %}
+                                    {% if changes.metadata_changes %}
+                                    <span class="badge bg-primary me-1">metadata 변경</span>
+                                    {% endif %}
+                                    {% if changes.subject_count_change %}
+                                    <span class="badge bg-success me-1">Subject 수 변경</span>
+                                    {% endif %}
+                                    {% if changes.subject_changes %}
+                                        {% set has_description_changes = changes.subject_changes | selectattr('changes.description') | list | length > 0 %}
+                                        {% if has_description_changes %}
+                                        <span class="badge bg-warning text-dark me-1">description 변경</span>
+                                        {% endif %}
+                                        {% set has_pii_changes = changes.subject_changes | selectattr('changes.pii_changes') | list | length > 0 %}
+                                        {% if has_pii_changes %}
+                                        <span class="badge bg-secondary me-1">PII 변경</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" 
+                             aria-labelledby="heading{{ loop.index }}" data-bs-parent="#changesAccordion">
+                            <div class="accordion-body">
+                                <!-- Text Changes -->
+                                {% if changes.text_changes and not changes.text_changes.identical %}
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-file-text me-1"></i>텍스트 변경사항</h6>
+                                    <div class="alert alert-info">
+                                        <strong>길이 차이:</strong> {{ changes.text_changes.length_difference }} 문자
+                                        (원본: {{ changes.text_changes.original_length }}, 
+                                         내보낸: {{ changes.text_changes.exported_length }})
+                                    </div>
+                                    
+                                    {% if changes.text_changes.line_differences %}
+                                    <h6>라인 변경사항:</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>타입</th>
+                                                    <th>내용</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for diff in changes.text_changes.line_differences %}
+                                                <tr class="{% if diff.type == 'added' %}table-success{% else %}table-danger{% endif %}">
+                                                    <td>
+                                                        <span class="badge bg-{% if diff.type == 'added' %}success{% else %}danger{% endif %}">
+                                                            {{ '추가' if diff.type == 'added' else '삭제' }}
+                                                        </span>
+                                                    </td>
+                                                    <td><code>{{ diff.content }}</code></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if changes.text_changes.character_changes %}
+                                    <h6>문자 변경사항:</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>타입</th>
+                                                    <th>원본</th>
+                                                    <th>내보낸</th>
+                                                    <th>위치</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for char_change in changes.text_changes.character_changes %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-{% if char_change.type == 'replace' %}warning{% elif char_change.type == 'delete' %}danger{% else %}success{% endif %}">
+                                                            {{ char_change.type }}
+                                                        </span>
+                                                    </td>
+                                                    <td><code>{{ char_change.original_text }}</code></td>
+                                                    <td><code>{{ char_change.exported_text }}</code></td>
+                                                    <td>{{ char_change.original_position }} → {{ char_change.exported_position }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Metadata Changes -->
+                                {% if changes.metadata_changes %}
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-tags me-1"></i>메타데이터 변경사항</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>필드</th>
+                                                    <th>타입</th>
+                                                    <th>원본 값</th>
+                                                    <th>새 값</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for field, change in changes.metadata_changes.items() %}
+                                                <tr>
+                                                    <td><code>{{ field }}</code></td>
+                                                    <td>
+                                                        <span class="badge bg-{% if change.type == 'added' %}success{% elif change.type == 'missing' %}danger{% else %}warning{% endif %}">
+                                                            {{ change.type }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ change.original_value if change.original_value is defined else '-' }}</td>
+                                                    <td>{{ change.new_value if change.new_value is defined else '-' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Subject Count Change -->
+                                {% if changes.subject_count_change %}
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-users me-1"></i>Subject 수 변경</h6>
+                                    <div class="alert alert-warning">
+                                        <strong>원본:</strong> {{ changes.subject_count_change.original }}개<br>
+                                        <strong>내보낸:</strong> {{ changes.subject_count_change.exported }}개<br>
+                                        <strong>차이:</strong> {{ changes.subject_count_change.difference }}개
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Subject Changes -->
+                                {% if changes.subject_changes %}
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-user-edit me-1"></i>Subject 변경사항</h6>
+                                    {% for subject_change in changes.subject_changes %}
+                                    <div class="card mb-2">
+                                        <div class="card-header">
+                                            <strong>Subject ID: {{ subject_change.subject_id }}</strong>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if subject_change.changes.status %}
+                                            <div class="alert alert-{% if subject_change.changes.status == 'added_in_exported' %}success{% else %}danger{% endif %}">
+                                                <strong>상태:</strong> {{ subject_change.changes.status }}
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if subject_change.changes.description %}
+                                            <div class="mb-2">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <strong>설명 변경:</strong>
+                                                    <span class="badge bg-warning text-dark ms-2">
+                                                        {{ subject_change.changes.description.change_type if subject_change.changes.description.change_type else 'modified' }}
+                                                    </span>
+                                                </div>
+                                                <div class="row">
+                                                    {% if subject_change.changes.description.original %}
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted">원본:</small><br>
+                                                        <div class="alert alert-light border">
+                                                            <code>{{ subject_change.changes.description.original }}</code>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                    {% if subject_change.changes.description.exported %}
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted">내보낸:</small><br>
+                                                        <div class="alert alert-light border">
+                                                            <code>{{ subject_change.changes.description.exported }}</code>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if subject_change.changes.pii_changes %}
+                                            <div>
+                                                <strong>PII 변경사항:</strong>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>태그</th>
+                                                                <th>타입</th>
+                                                                <th>원본</th>
+                                                                <th>내보낸</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for tag, pii_change in subject_change.changes.pii_changes.items() %}
+                                                            <tr>
+                                                                <td><code>{{ tag }}</code></td>
+                                                                <td>
+                                                                    <span class="badge bg-{% if pii_change.type == 'added' %}success{% elif pii_change.type == 'removed' %}danger{% else %}warning{% endif %}">
+                                                                        {{ pii_change.type }}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    {% if pii_change.original_value %}
+                                                                        {{ pii_change.original_value }}
+                                                                    {% elif pii_change.field_changes %}
+                                                                        {% for field, field_change in pii_change.field_changes.items() %}
+                                                                            <strong>{{ field }}:</strong> {{ field_change.original }}<br>
+                                                                        {% endfor %}
+                                                                    {% else %}
+                                                                        -
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if pii_change.exported_value %}
+                                                                        {{ pii_change.exported_value }}
+                                                                    {% elif pii_change.field_changes %}
+                                                                        {% for field, field_change in pii_change.field_changes.items() %}
+                                                                            <strong>{{ field }}:</strong> {{ field_change.exported }}<br>
+                                                                        {% endfor %}
+                                                                    {% else %}
+                                                                        -
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+            <h5><i class="fas fa-check-circle me-2"></i>변경사항 없음</h5>
+            <p class="mb-0">두 파일 간에 변경사항이 발견되지 않았습니다.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
