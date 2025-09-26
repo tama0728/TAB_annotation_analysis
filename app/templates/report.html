@@ -67,6 +67,22 @@
                     </div>
                 </div>
             </div>
+            <div class="col-md-2 mt-3">
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.data_ids_removed or 0 }}</h3>
+                        <p class="mb-0">삭제된 data_id</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mt-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ report.summary.data_ids_added or 0 }}</h3>
+                        <p class="mb-0">추가된 data_id</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- File Information -->
@@ -86,6 +102,56 @@
                         <strong>동일한 텍스트:</strong> {{ report.summary.identical_text_content }}개 레코드
                     </div>
                 </div>
+                {% if report.id_changes %}
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-minus-circle me-1"></i>삭제된 data_id (원본에는 있으나 내보낸 파일에 없음)</h6>
+                        {% if report.id_changes.missing_in_exported %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>data_id</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for did in report.id_changes.missing_in_exported %}
+                                    <tr>
+                                        <td><code>{{ did }}</code></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-plus-circle me-1"></i>추가된 data_id (내보낸 파일에만 존재)</h6>
+                        {% if report.id_changes.added_in_exported %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>data_id</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for did in report.id_changes.added_in_exported %}
+                                    <tr>
+                                        <td><code>{{ did }}</code></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">없음</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 

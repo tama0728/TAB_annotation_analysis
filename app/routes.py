@@ -68,7 +68,9 @@ def upload_files():
                 'text_changes': report['summary']['text_changes'],
                 'description_changes': report['summary']['description_changes'],
                 'subject_count_changes': report['summary']['subject_count_changes'],
-                'pii_annotation_changes': report['summary']['pii_annotation_changes']
+                'pii_annotation_changes': report['summary']['pii_annotation_changes'],
+                'data_ids_removed': report['summary'].get('data_ids_removed', 0),
+                'data_ids_added': report['summary'].get('data_ids_added', 0)
             }
         })
         

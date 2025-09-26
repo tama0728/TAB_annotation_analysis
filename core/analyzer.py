@@ -259,15 +259,33 @@ class JSONAnalyzer:
                 "pii_annotation_changes": 0,
                 "identical_text_content": 0,
                 "description_changes": 0,
-                "text_changes": 0
+                "text_changes": 0,
+                "data_ids_removed": 0,
+                "data_ids_added": 0
             },
-            "changes_by_record": {}
+            "changes_by_record": {},
+            "id_changes": {
+                "missing_in_exported": [],
+                "added_in_exported": []
+            }
         }
         
         identical_text_count = 0
         
+        # Compute data_id additions/removals
+        orig_ids = set(orig_by_id.keys())
+        exp_ids = set(exp_by_id.keys())
+        missing_in_exported = sorted(list(orig_ids - exp_ids))
+        added_in_exported = sorted(list(exp_ids - orig_ids))
+        
+        report["id_changes"]["missing_in_exported"] = missing_in_exported
+        report["id_changes"]["added_in_exported"] = added_in_exported
+        report["summary"]["data_ids_removed"] = len(missing_in_exported)
+        report["summary"]["data_ids_added"] = len(added_in_exported)
+        
         for data_id in orig_by_id.keys():
             if data_id not in exp_by_id:
+                # already accounted as missing; skip detailed comparison
                 continue
                 
             orig = orig_by_id[data_id]

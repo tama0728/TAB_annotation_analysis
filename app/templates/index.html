@@ -218,6 +218,22 @@ function showResults(result) {
                 </div>
             </div>
         </div>
+        <div class="col-md-3 mt-3">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h3>${summary.data_ids_removed || 0}</h3>
+                    <p class="mb-0">삭제된 data_id</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mt-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>${summary.data_ids_added || 0}</h3>
+                    <p class="mb-0">추가된 data_id</p>
+                </div>
+            </div>
+        </div>
     `;
     
     document.getElementById('results').style.display = 'block';
@@ -239,7 +255,7 @@ function hideError() {
 // Event listeners for buttons
 document.getElementById('viewReportBtn').addEventListener('click', function() {
     if (window.currentSessionId) {
-        window.open(`/report/${window.currentSessionId}`, '_blank');
+        window.location.href = `/report/${window.currentSessionId}`;
     }
 });
 
