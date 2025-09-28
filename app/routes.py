@@ -98,11 +98,14 @@ def view_report(session_id):
 
 @main.route('/download/<session_id>')
 def download_report(session_id):
-    report_filename = f"../../reports/report_{session_id}.json"
-    report_path = os.path.join(current_app.config['REPORTS_FOLDER'], report_filename)
+    report_filename = f"report_{session_id}.json"
+    report_path = os.path.join(os.getcwd(), current_app.config['REPORTS_FOLDER'], report_filename)
+    print(report_path)
+    print(current_app.config['REPORTS_FOLDER'])
+    print(os.getcwd())
 
-    # if not os.path.exists(report_path):
-        # flash('보고서를 찾을 수 없습니다.', 'error')
+    if not os.path.exists(report_path):
+        flash('보고서를 찾을 수 없습니다.', 'error')
         # return redirect(url_for('main.index'))
     
     return send_file(report_path, as_attachment=True, download_name=f"analysis_report_{session_id}.json")
